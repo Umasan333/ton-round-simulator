@@ -9,7 +9,7 @@
  }
  function drawScheduled(data,config,rng){
    const rates=soloRates(data),session=config.session||createSession(),next={...session};
-   const short=config.shortChance??0;if(!Number.isFinite(short)||short<0||short>1)throw Error('通常1回で特殊へ進む確率は0〜100%で指定してください');
+   const short=config.shortChance??0.5;if(!Number.isFinite(short)||short<0||short>1)throw Error('通常1回で特殊へ進む確率は0〜100%で指定してください');
    let selected,kind;const choose=items=>weighted(items,x=>x[1],rng)[0];
    if(config.round==='SpecialOnly'){selected=choose([...rates.special,...rates.interrupt]);kind=rates.interrupt.some(x=>x[0]===selected)?'interrupt':'special';}
    else if(config.round==='NormalOnly'){selected=choose(rates.normal);kind='normal';}
