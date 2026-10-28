@@ -2,19 +2,21 @@
 const data=TON_DATA,engine=TON_ENGINE,$=id=>document.getElementById(id);
 const colors={Classic:'#f25548',Alternate:'#e3e6ec',Midnight:'#b89be9',Unbound:'#ffac50',Punished:'#fff800',Randomizer:'#ffcc01','Classic.exe':'#3af4c2',Sabotage:'#3bf37d',Cracked:'#ff00d3'};
 for(const r of ['Fog','Fog(Classic)','Fog(Alternate)'])colors[r]='#969a9c';for(const r of ['Ghost','Ghost(Classic)','Ghost(Alternate)'])colors[r]='#c3f7ff';
+for(const r of ['Bloodbath','Double Trouble','EX'])colors[r]='#f25548';
 let count=0,history=[];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 data.maps.forEach(m=>$('map').add(new Option(m.name+(m.weight===.5?' · ½':''),m.id)));
 function syncTerrors(){
  const round=$('round').value,map=$('map').value===''?null:Number($('map').value);
+ $('bloodbath-rules').hidden=!['Bloodbath','Double Trouble','EX'].includes(round);
  const old=[...document.querySelectorAll('.terror-select')].map(s=>s.value);
  $('terror-settings').replaceChildren();$('slot-hint').hidden=!!round;
  $('slot-hint').textContent='テラーを固定するにはラウンドを選択';
- if(['Midnight','Punished','Randomizer'].includes(round)&&map===null&&old.slice(0,round==='Midnight'?2:1).includes('97')){$('slot-hint').hidden=false;$('slot-hint').textContent='S.O.S固定中は、出現できるマップから抽選';}
+ if(['Midnight','Punished','Randomizer','Bloodbath','Double Trouble','EX'].includes(round)&&map===null&&old.slice(0,round==='Midnight'?2:['Bloodbath','Double Trouble','EX'].includes(round)?3:1).includes('97')){$('slot-hint').hidden=false;$('slot-hint').textContent='S.O.S固定中は、出現できるマップから抽選';}
  if(!round)return;
  engine.slots(round).forEach((scope,i)=>{
    const box=document.createElement('div'),label=document.createElement('label'),select=document.createElement('select');
-   label.htmlFor=select.id='terror-'+i;label.textContent=round==='Midnight'?scope+(scope==='Classic'?' '+(i+1):''):'テラー';
+   label.htmlFor=select.id='terror-'+i;label.textContent=round==='Midnight'?scope+(scope==='Classic'?' '+(i+1):''):engine.slots(round).length>1?'テラー '+(i+1):'テラー';
    select.className='terror-select';select.add(new Option('ランダム',''));
    const other=round==='Midnight'&&scope==='Classic'?old[1-i]:null;
    if(scope==='Mixed'){
@@ -25,6 +27,11 @@ function syncTerrors(){
    box.append(label,select);$('terror-settings').append(box);
  });
  if(round==='Fog'||round==='Ghost'){$('slot-hint').hidden=false;$('slot-hint').textContent=old[0]?'固定テラーのカテゴリで抽選':'Classic 90% / Alternate 10%';}
+ if(['Bloodbath','Double Trouble','EX'].includes(round)){
+   const size=engine.pool(data,round,'Classic',map).length;
+   $('slot-hint').hidden=false;
+   $('slot-hint').textContent=size+'種 · 2体一致でDouble Trouble、3体一致でEX'+(round==='Bloodbath'?'。未固定時のDouble Trouble率 '+(engine.bloodbathRates(data).doubleShare*100).toFixed(3)+'%':'');
+ }
 }
 function config(){return{round:$('round').value,mapId:$('map').value===''?null:Number($('map').value),terrors:[...document.querySelectorAll('.terror-select')].map(s=>s.value===''?null:s.value.includes(':')?s.value:Number(s.value))};}
 function renderResult(r){
@@ -40,10 +47,11 @@ function draw(n){
  try{
    if(!Number.isInteger(n)||n<1||n>100000)throw Error('回数は1〜100,000の整数で入力してください。');
    const c=config();
-   const frequencies=new Map();let result;
-   for(let i=0;i<n;i++){result=engine.draw(data,c);count++;history.unshift({...result,no:count});if(history.length>100)history.pop();for(const t of result.terrors){const key=t.scope+':'+t.id+':'+t.variant;const item=frequencies.get(key)||{terror:t,count:0};item.count++;frequencies.set(key,item);}}
+   const frequencies=new Map(),outcomes=new Map();let result;
+   for(let i=0;i<n;i++){result=engine.draw(data,c);count++;history.unshift({...result,no:count});if(history.length>100)history.pop();outcomes.set(result.round,(outcomes.get(result.round)||0)+1);const seen=new Set();for(const t of result.terrors){const key=t.scope+':'+t.id+':'+t.variant;if(seen.has(key))continue;seen.add(key);const item=frequencies.get(key)||{terror:t,count:0};item.count++;frequencies.set(key,item);}}
    renderResult(result);renderHistory();$('batch-summary').hidden=n===1;
    $('batch-size').textContent=n.toLocaleString()+'回';
+   $('batch-outcomes').textContent=[...outcomes].map(([r,v])=>r+' '+v.toLocaleString()+'回').join(' / ');
    $('frequencies').innerHTML=[...frequencies.values()].sort((a,b)=>b.count-a.count).map(x=>`<div class="frequency"><img src="${x.terror.icon}" alt=""><span>${esc(x.terror.name)}</span><strong>${x.count.toLocaleString()}<small>回</small></strong></div>`).join('');
  }catch(e){$('error').textContent=e.message;}
 }
