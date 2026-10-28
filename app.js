@@ -1,6 +1,6 @@
 'use strict';
 const data=TON_DATA,engine=TON_ENGINE,$=id=>document.getElementById(id);
-const colors={Classic:'#f25548',Alternate:'#e3e6ec',Midnight:'#b89be9',Unbound:'#ffac50'};
+const colors={Classic:'#f25548',Alternate:'#e3e6ec',Midnight:'#b89be9',Unbound:'#ffac50',Punished:'#fff800',Randomizer:'#ffcc01','Classic.exe':'#3af4c2',Sabotage:'#3bf37d',Cracked:'#ff00d3'};
 let count=0,history=[];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 data.maps.forEach(m=>$('map').add(new Option(m.name+(m.weight===.5?' · ½':''),m.id)));
@@ -9,7 +9,7 @@ function syncTerrors(){
  const old=[...document.querySelectorAll('.terror-select')].map(s=>s.value);
  $('terror-settings').replaceChildren();$('slot-hint').hidden=!!round;
  $('slot-hint').textContent='テラーを固定するにはラウンドを選択';
- if(round==='Midnight'&&map===null&&old.slice(0,2).includes('97')){$('slot-hint').hidden=false;$('slot-hint').textContent='S.O.S固定中は、出現できるマップから抽選';}
+ if(['Midnight','Punished','Randomizer'].includes(round)&&map===null&&old.slice(0,round==='Midnight'?2:1).includes('97')){$('slot-hint').hidden=false;$('slot-hint').textContent='S.O.S固定中は、出現できるマップから抽選';}
  if(!round)return;
  engine.slots(round).forEach((scope,i)=>{
    const box=document.createElement('div'),label=document.createElement('label'),select=document.createElement('select');
