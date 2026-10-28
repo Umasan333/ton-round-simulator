@@ -3,15 +3,22 @@ const data=TON_DATA,engine=TON_ENGINE,$=id=>document.getElementById(id);
 const colors={Classic:'#f25548',Alternate:'#e3e6ec',Midnight:'#b89be9',Unbound:'#ffac50',Punished:'#fff800',Randomizer:'#ffcc01','Classic.exe':'#3af4c2',Sabotage:'#3bf37d',Cracked:'#ff00d3'};
 for(const r of ['Fog','Fog(Classic)','Fog(Alternate)'])colors[r]='#969a9c';for(const r of ['Ghost','Ghost(Classic)','Ghost(Alternate)'])colors[r]='#c3f7ff';
 for(const r of ['Bloodbath','Double Trouble','EX'])colors[r]='#f25548';
+colors.Run='#c15f3e';colors['8 Pages']='#ffffff';
 let count=0,history=[];
+let session=engine.createSession();
+function renderCycle(){const active=$('round').value==='Random';$('cycle-status').hidden=!active;$('cycle-status').textContent=session.nextSpecial?'次：特殊':'次：通常'+(session.normalDone+1)+'枠目';}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 data.maps.forEach(m=>$('map').add(new Option(m.name+(m.weight===.5?' · ½':''),m.id)));
 function syncTerrors(){
  const round=$('round').value,map=$('map').value===''?null:Number($('map').value);
+ $('sequence-options').hidden=round!=='Random';renderCycle();
  $('bloodbath-rules').hidden=!['Bloodbath','Double Trouble','EX'].includes(round);
  const old=[...document.querySelectorAll('.terror-select')].map(s=>s.value);
  $('terror-settings').replaceChildren();$('slot-hint').hidden=!!round;
  $('slot-hint').textContent='テラーを固定するにはラウンドを選択';
+ if(engine.RANDOM_MODES.has(round)){
+   $('slot-hint').hidden=false;$('slot-hint').textContent=round==='Random'?'ソロ実測 · 割り込みは通常／特殊の進行を維持':round==='SpecialOnly'?'Classic・Runを除くラウンドから抽選':round==='NormalOnly'?'Classic・Runから抽選':'Ghost・Unbound・8 Pagesから抽選';return;
+ }
  if(['Midnight','Punished','Randomizer','Bloodbath','Double Trouble','EX'].includes(round)&&map===null&&old.slice(0,round==='Midnight'?2:['Bloodbath','Double Trouble','EX'].includes(round)?3:1).includes('97')){$('slot-hint').hidden=false;$('slot-hint').textContent='S.O.S固定中は、出現できるマップから抽選';}
  if(!round)return;
  engine.slots(round).forEach((scope,i)=>{
@@ -33,7 +40,7 @@ function syncTerrors(){
    $('slot-hint').textContent=size+'種 · 2体一致でDouble Trouble、3体一致でEX'+(round==='Bloodbath'?'。未固定時のDouble Trouble率 '+(engine.bloodbathRates(data).doubleShare*100).toFixed(3)+'%':'');
  }
 }
-function config(){return{round:$('round').value,mapId:$('map').value===''?null:Number($('map').value),terrors:[...document.querySelectorAll('.terror-select')].map(s=>s.value===''?null:s.value.includes(':')?s.value:Number(s.value))};}
+function config(){return{round:$('round').value,session,shortChance:Number($('short-chance').value)/100,mapId:$('map').value===''?null:Number($('map').value),terrors:[...document.querySelectorAll('.terror-select')].map(s=>s.value===''?null:s.value.includes(':')?s.value:Number(s.value))};}
 function renderResult(r){
  const el=$('result');el.className='result animate'+(r.terrors.length>1?' multiple':'');el.style.setProperty('--round-color',colors[r.round]);el.style.setProperty('--slots',r.terrors.length);
  el.innerHTML=`<div class="round-line"><h2 class="round-title">${r.round}</h2><span class="round-number">#${String(count).padStart(3,'0')}</span></div><p class="map-name"><span class="map-label">MAP</span>${esc(r.map.name)}</p><div class="terror-list">${r.terrors.map(t=>`<div class="terror"><img src="${t.icon}" alt="${esc(t.name)}"><div><div class="terror-name">${esc(t.name)}</div><div class="terror-scope">${t.scope.toUpperCase()}${t.fixed?'<span class="fixed-badge">固定</span>':''}</div></div></div>`).join('')}</div>${r.terrors.some(t=>t.replaced)?'<p class="replacement">このマップでは S.O.S → Those Olden Days</p>':''}`;
@@ -49,16 +56,16 @@ function draw(n){
    const c=config();
    const frequencies=new Map(),outcomes=new Map();let result;
    for(let i=0;i<n;i++){result=engine.draw(data,c);count++;history.unshift({...result,no:count});if(history.length>100)history.pop();outcomes.set(result.round,(outcomes.get(result.round)||0)+1);const seen=new Set();for(const t of result.terrors){const key=t.scope+':'+t.id+':'+t.variant;if(seen.has(key))continue;seen.add(key);const item=frequencies.get(key)||{terror:t,count:0};item.count++;frequencies.set(key,item);}}
-   renderResult(result);renderHistory();$('batch-summary').hidden=n===1;
+   renderResult(result);renderHistory();renderCycle();$('batch-summary').hidden=n===1;
    $('batch-size').textContent=n.toLocaleString()+'回';
    $('batch-outcomes').textContent=[...outcomes].map(([r,v])=>r+' '+v.toLocaleString()+'回').join(' / ');
    $('frequencies').innerHTML=[...frequencies.values()].sort((a,b)=>b.count-a.count).map(x=>`<div class="frequency"><img src="${x.terror.icon}" alt=""><span>${esc(x.terror.name)}</span><strong>${x.count.toLocaleString()}<small>回</small></strong></div>`).join('');
  }catch(e){$('error').textContent=e.message;}
 }
-$('round').addEventListener('change',()=>{$('terror-settings').replaceChildren();syncTerrors();$('error').textContent='';});$('map').addEventListener('change',()=>{syncTerrors();$('error').textContent='';});
+$('round').addEventListener('change',()=>{session=engine.createSession();$('terror-settings').replaceChildren();syncTerrors();$('error').textContent='';});$('map').addEventListener('change',()=>{syncTerrors();$('error').textContent='';});
 $('draw').addEventListener('click',()=>draw(1));$('draw-ten').addEventListener('click',()=>draw(10));
 $('draw-hundred').addEventListener('click',()=>draw(100));$('draw-n').addEventListener('click',()=>draw(Number($('draw-count').value)));
-$('reset').addEventListener('click',()=>{$('round').value='Classic';$('map').value='';$('terror-settings').replaceChildren();syncTerrors();$('error').textContent='';});
+$('reset').addEventListener('click',()=>{$('round').value='Random';$('map').value='';$('short-chance').value='0';session=engine.createSession();$('terror-settings').replaceChildren();syncTerrors();$('error').textContent='';});
 $('clear').addEventListener('click',()=>{history=[];renderHistory();});syncTerrors();
-$('server-odds').innerHTML=`<p class="hint">サーバー累計 ${data.stats.total.toLocaleString()}回 · ${esc(data.stats.retrievedAt.slice(0,16).replace('T',' '))} JST</p><table class="odds-table"><thead><tr><th>ラウンド</th><th>回数</th><th>割合</th></tr></thead><tbody>${data.stats.rounds.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.count.toLocaleString()}</td><td>${(100*r.count/data.stats.total).toFixed(3)}%</td></tr>`).join('')}</tbody></table>`;
+$('server-odds').innerHTML=`<p class="hint">ソロ ${data.solo.total.toLocaleString()}回 · ${esc(data.solo.cutoff_jst.slice(0,19).replace('T',' '))} JSTより後。Moon・Gigabytes・Sabotage・季節イベントを除外。</p><table class="odds-table"><thead><tr><th>ラウンド</th><th>回数</th><th>実測割合</th></tr></thead><tbody>${Object.entries(data.solo.counts).sort((a,b)=>b[1]-a[1]).map(([name,n])=>`<tr><td>${esc(name)}</td><td>${n.toLocaleString()}</td><td>${(100*n/data.solo.total).toFixed(3)}%</td></tr>`).join('')}</tbody></table>`;
 $('ghost-odds').innerHTML=`<p class="hint">出禁・旧テラー除外後 ${data.stats.ghostAlternateSample.toLocaleString()}回を重みに使用</p><table class="odds-table"><thead><tr><th>テラー</th><th>回数</th><th>割合</th></tr></thead><tbody>${data.terrors['Ghost(Alternate)'].Alternate.filter(t=>data.stats.ghostAlternateWeights[t.id]>0).sort((a,b)=>data.stats.ghostAlternateWeights[b.id]-data.stats.ghostAlternateWeights[a.id]).map(t=>`<tr><td>${esc(t.name)}</td><td>${data.stats.ghostAlternateWeights[t.id]}</td><td>${(100*data.stats.ghostAlternateWeights[t.id]/data.stats.ghostAlternateSample).toFixed(2)}%</td></tr>`).join('')}</tbody></table>`;

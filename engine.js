@@ -1,13 +1,32 @@
 (function(root){
  'use strict';
- const ROUNDS=['Classic','Alternate','Midnight','Unbound','Punished','Randomizer','Classic.exe','Sabotage','Cracked','Fog','Fog(Classic)','Fog(Alternate)','Ghost','Ghost(Classic)','Ghost(Alternate)','Bloodbath','Double Trouble','EX'];
+ const ROUNDS=['Classic','Alternate','Midnight','Unbound','Punished','Randomizer','Classic.exe','Sabotage','Cracked','Fog','Fog(Classic)','Fog(Alternate)','Ghost','Ghost(Classic)','Ghost(Alternate)','Bloodbath','Double Trouble','EX','Run','8 Pages'];
+ const RANDOM_MODES=new Set(['Random','NormalOnly','SpecialOnly','InterruptOnly']);
+ function createSession(){return {normalDone:0,nextSpecial:false};}
+ function soloRates(data){
+   const c=data.solo.counts;
+   return {normal:[['Classic',c.Classic],['Run',c.Run]],special:[['Bloodbath',c.Bloodbath+c['Double Trouble']+c.EX],['Alternate',c.Alternate],['Fog',c['Fog(Classic)']+c['Fog(Alternate)']],['Punished',c.Punished],['Cracked',c.Cracked],['Midnight',c.Midnight]],interrupt:[['Ghost',c['Ghost(Classic)']+c['Ghost(Alternate)']],['Unbound',c.Unbound],['8 Pages',c['8 Pages']]],interruptChance:data.solo.groups.interrupt/data.solo.total};
+ }
+ function drawScheduled(data,config,rng){
+   const rates=soloRates(data),session=config.session||createSession(),next={...session};
+   const short=config.shortChance??0;if(!Number.isFinite(short)||short<0||short>1)throw Error('通常1回で特殊へ進む確率は0〜100%で指定してください');
+   let selected,kind;const choose=items=>weighted(items,x=>x[1],rng)[0];
+   if(config.round==='SpecialOnly'){selected=choose([...rates.special,...rates.interrupt]);kind=rates.interrupt.some(x=>x[0]===selected)?'interrupt':'special';}
+   else if(config.round==='NormalOnly'){selected=choose(rates.normal);kind='normal';}
+   else if(config.round==='InterruptOnly'||rng()<rates.interruptChance){selected=choose(rates.interrupt);kind='interrupt';}
+   else if(session.nextSpecial){selected=choose(rates.special);kind='special';next.normalDone=0;next.nextSpecial=false;}
+   else {selected=choose(rates.normal);kind='normal';next.normalDone++;next.nextSpecial=next.normalDone>=2||rng()<short;}
+   const result=draw(data,{...config,round:selected,terrors:[]},rng);
+   if(config.round==='Random')Object.assign(session,next);
+   return {...result,drawKind:kind};
+ }
  const BLOODBATH_ROUNDS=new Set(['Bloodbath','Double Trouble','EX']);
  const CLASSIC_RULES=new Set(['Classic','Classic.exe','Sabotage','Cracked','Fog(Classic)','Ghost(Classic)']);
  const PUNISHED_RULES=new Set(['Punished','Randomizer']);
  const SPECIAL_MAPS=new Set([49,65,72]);
  const MIDNIGHT_EXCLUDED=new Set([73,116,33,96]);
  const GHOST_DOUBLE=new Set([0,3,21,34,35,127,14]);
- function slots(round){if(BLOODBATH_ROUNDS.has(round))return ['Classic','Classic','Classic'];if(round==='Fog'||round==='Ghost')return ['Mixed'];return round==='Midnight'?['Classic','Classic','Alternate']:[round.endsWith('(Alternate)')?'Alternate':CLASSIC_RULES.has(round)||PUNISHED_RULES.has(round)?'Classic':round];}
+ function slots(round){if(RANDOM_MODES.has(round))return [];if(round==='8 Pages')return ['8Pages'];if(BLOODBATH_ROUNDS.has(round))return ['Classic','Classic','Classic'];if(round==='Fog'||round==='Ghost')return ['Mixed'];return round==='Midnight'?['Classic','Classic','Alternate']:[round.endsWith('(Alternate)')?'Alternate':CLASSIC_RULES.has(round)||PUNISHED_RULES.has(round)?'Classic':round];}
  function pool(data,round,scope,mapId){if(round==='Fog'||round==='Ghost')round=round+'('+scope+')';return data.terrors[round][scope].filter(t=>{
    if(round==='Ghost(Classic)'&&[2,128].includes(t.id))return false;
    if(round==='Ghost(Alternate)')return t.id!==0&&(data.stats.ghostAlternateWeights[String(t.id)]||0)>0;
@@ -17,7 +36,7 @@
  function weighted(items,weight,rng){const total=items.reduce((n,x)=>n+weight(x),0);if(!total)throw Error('抽選候補がありません');let p=rng()*total;for(const item of items){p-=weight(item);if(p<0)return item;}return items[items.length-1];}
  function pick(items,rng){if(!items.length)throw Error('抽選候補がありません');return items[Math.floor(rng()*items.length)];}
  function bloodbathRates(data,n=130){
-   const b=data.stats.rounds.find(r=>r.name==='Bloodbath')?.count||0,d=data.stats.rounds.find(r=>r.name==='Double Trouble')?.count||0;
+   const b=data.solo?.counts.Bloodbath??data.stats.rounds.find(r=>r.name==='Bloodbath')?.count??0,d=data.solo?.counts['Double Trouble']??data.stats.rounds.find(r=>r.name==='Double Trouble')?.count??0;
    const doubleShare=b+d?d/(b+d):3*(n-1)/(n*n-1),ex=1/(n*n),naturalDouble=3*(n-1)/(n*n),distinct=(n-1)*(n-2)/(n*n);
    return {bloodbath:b,doubleTrouble:d,doubleShare,ex,naturalDouble,correction:Math.max(0,Math.min(1,((1-ex)*doubleShare-naturalDouble)/distinct))};
  }
@@ -54,6 +73,7 @@
    return {round,map,terrors};
  }
  function draw(data,config={},rng=Math.random){
+   if(RANDOM_MODES.has(config.round))return drawScheduled(data,config,rng);
    let round=config.round;if(!ROUNDS.includes(round))throw Error('ラウンドを選択してください');
    if(BLOODBATH_ROUNDS.has(round))return drawBloodbath(data,config,rng);
    let fixed=config.terrors||[];
@@ -85,5 +105,5 @@
    });
    return {round,map,terrors:chosen};
  }
- const api={ROUNDS,SPECIAL_MAPS,MIDNIGHT_EXCLUDED,slots,pool,weighted,draw,bloodbathRates};root.TON_ENGINE=api;if(typeof module!=='undefined')module.exports=api;
+ const api={ROUNDS,SPECIAL_MAPS,MIDNIGHT_EXCLUDED,slots,pool,weighted,draw,bloodbathRates,RANDOM_MODES,createSession,soloRates};root.TON_ENGINE=api;if(typeof module!=='undefined')module.exports=api;
 })(globalThis);
