@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0c0e12"><title>ToN ラウンドシミュレーター</title><meta name="description" content="ラウンド・マップ・テラーを固定して抽選できるTerrors of Nowhereのラウンドシミュレーター。"><link rel="stylesheet" href="style.css"></head>
+<body><header><a class="brand" href="./"><span class="brand-mark">T<span>o</span>N</span><div>ROUND SIMULATOR<small>Terrors of Nowhere</small></div></a><span class="version">CLASSIC / ALTERNATE / MIDNIGHT / UNBOUND</span></header>
+<main><aside><div class="section-heading"><h1>抽選設定</h1><button class="text-button" id="reset">リセット</button></div>
+<label for="round">ラウンド</label><select id="round"><option>Classic</option><option>Alternate</option><option>Midnight</option><option>Unbound</option></select>
+<label for="map">マップ</label><select id="map"><option value="">ランダム</option></select>
+<div id="terror-settings"></div><p class="hint" id="slot-hint">テラーを固定するにはラウンドを選択</p>
+<div class="actions"><button class="primary" id="draw">抽選する <span>↗</span></button><div class="batch-presets"><button id="draw-ten" class="secondary">10連</button><button id="draw-hundred" class="secondary">100連</button></div><label for="draw-count" class="batch-label">回数を指定</label><div class="batch-custom"><input id="draw-count" type="number" min="1" max="100000" step="1" value="1000" aria-label="連続抽選回数"><button id="draw-n" class="secondary">n連</button></div></div><p role="alert" id="error"></p>
+<details><summary>抽選ルール</summary><div class="rules"><p>マップは通常の重み1。Challenge Cube・Spacelessは0.5。Dring King's Citadelは対象外。</p><p>Classic 134種、Alternate 36種、Unbound 84種を均等抽選。</p><p>Heaven・Escape Route・SpacelessではClassicのS.O.SをThose Olden Daysに置換。</p><p>MidnightはClassic 2枠＋Alternate 1枠。Classic枠は重複なし。Akumii-Kari・Deleted・Luigi & Luigi Dolls・Those Olden Daysを除外。上記3マップではS.O.Sも除外して他のClassic候補を均等抽選。</p><p>固定時にも出現制限を適用。低確率の派生テラーは抽選しません。連続抽選は1〜100,000回。履歴は直近100件。</p></div></details></aside>
+<section class="workspace"><div class="result-top"><span class="eyebrow">ROUND DRAW</span><span id="counter">0 ROUNDS</span></div>
+<article id="result" class="result empty" aria-live="polite"><div class="empty-content"><div class="empty-icons"><img src="icons/Classic-Classic-0.png" alt=""><img src="icons/Alternate-Alternate-3.png" alt=""><img src="icons/Unbound-Unbound-63.png" alt=""></div><h2>次のラウンドは？</h2><p>条件を選んで、抽選してみよう。</p></div></article>
+<section id="batch-summary" hidden><div class="section-heading"><h2>今回の出現数</h2><span id="batch-size"></span></div><div id="frequencies"></div></section>
+<section class="history-section"><div class="section-heading"><h2>抽選履歴 <span id="history-count">0</span></h2><button id="clear" class="text-button">クリア</button></div><div id="history"><p class="history-empty">抽選したラウンドがここに並びます</p></div></section></section></main>
+<footer>ToN Round Simulator <span>非公式・ブラウザ内で動作</span></footer>
+<script src="data.js"></script><script src="engine.js"></script><script src="app.js"></script></body></html>
